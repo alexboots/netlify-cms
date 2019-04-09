@@ -57,6 +57,7 @@ export default function withMapControl({ getFormat, getMap } = {}) {
         inputValue: '',
         options: [],
         selectedCity: '',
+        isLoading: false,
       }
       this.mapContainer = React.createRef();
     }
@@ -75,6 +76,7 @@ export default function withMapControl({ getFormat, getMap } = {}) {
 
       const target = this.mapContainer.current;
       const map = getMap ? getMap(target, featuresLayer) : getDefaultMap(target, featuresLayer);
+
       if (features.length > 0) {
         map.getView().fit(featuresSource.getExtent(), { maxZoom: 16, padding: [80, 80, 80, 80] });
       }
@@ -90,6 +92,7 @@ export default function withMapControl({ getFormat, getMap } = {}) {
     }
 
     getOpenStreetMapSearch = debounce(({query}) => {
+      this.setState({ isLoading: true });
       const queryURL = `https://nominatim.openstreetmap.org/search.php?q=${query}&format=json`
       fetch(queryURL)
         .then(response => response.json())
@@ -99,12 +102,16 @@ export default function withMapControl({ getFormat, getMap } = {}) {
             options.push({
               label: place.display_name,
               value: place.place_id,
-
+              lon: place.lon,
+              lat: place.lat,
             })
           }
-          this.setState({ options })
+          this.setState({ options, isLoading: false })
         })
-        .catch(error => console.error(error))
+        .catch(error => {
+          console.error(error)
+          this.setState({ isLoading: false })
+        })
     }, 300)
 
     handleInputChange = (value) => {
@@ -115,7 +122,10 @@ export default function withMapControl({ getFormat, getMap } = {}) {
     }
 
     handleSelectChange = (value) => {
-      this.setState({ selectedCity: value })
+      this.setState({
+        selectedCity: value,
+        inputValue: '',
+      })
     }
 
     render() {
@@ -130,7 +140,8 @@ export default function withMapControl({ getFormat, getMap } = {}) {
                 `
               )}>
                 <Select
-                  loading={true}
+                  isLoading={this.state.isLoading}
+                  value={this.state.inputValue}
                   options={this.state.options}
                   onChange={this.handleSelectChange}
                   onInputChange={this.handleInputChange}
