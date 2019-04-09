@@ -30,6 +30,7 @@
     "react-immutable-proptypes": "^2.1.0"
   },
   "dependencies": {
-    "ol": "^5.3.1"
+    "ol": "^5.3.1",
+    "react-select": "^2.4.2"
   }
 }

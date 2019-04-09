@@ -1,8 +1,12 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+
 import { ClassNames } from '@emotion/core';
-import olStyles from 'ol/ol.css';
+import styled from '@emotion/styled';
+import { reactSelectStyles, colors, lengths, styleStrings, buttons, borders } from 'netlify-cms-ui-default';
+
 import Map from 'ol/Map.js';
+import olStyles from 'ol/ol.css';
 import View from 'ol/View.js';
 import GeoJSON from 'ol/format/GeoJSON';
 import Draw from 'ol/interaction/Draw.js';
@@ -11,10 +15,21 @@ import VectorLayer from 'ol/layer/Vector.js';
 import OSMSource from 'ol/source/OSM.js';
 import VectorSource from 'ol/source/Vector.js';
 
+import Select from 'react-select';
+import debounce from 'lodash/debounce';
+
 const formatOptions = {
   dataProjection: 'EPSG:4326',
   featureProjection: 'EPSG:3857',
 };
+
+const AddLocationButton = styled.button`
+  ${buttons.button};
+  ${buttons.default};
+  ${buttons.green};
+`;
+
+
 const getDefaultFormat = () => new GeoJSON(formatOptions);
 
 const getDefaultMap = (target, featuresLayer) =>
@@ -38,10 +53,19 @@ export default function withMapControl({ getFormat, getMap } = {}) {
 
     constructor(props) {
       super(props);
+      this.state = {
+        inputValue: '',
+        options: [],
+        selectedCity: '',
+      }
       this.mapContainer = React.createRef();
     }
 
     componentDidMount() {
+      this.drawMap();
+    }
+
+    drawMap = () => {
       const { field, onChange, value } = this.props;
       const format = getFormat ? getFormat(field) : getDefaultFormat(field);
       const features = value ? [format.readFeature(value)] : [];
@@ -65,23 +89,82 @@ export default function withMapControl({ getFormat, getMap } = {}) {
       });
     }
 
+    getOpenStreetMapSearch = debounce(({query}) => {
+      const queryURL = `https://nominatim.openstreetmap.org/search.php?q=${query}&format=json`
+      fetch(queryURL)
+        .then(response => response.json())
+        .then(data => {
+          const options = [];
+          for(const place of data) {
+            options.push({
+              label: place.display_name,
+              value: place.place_id,
+
+            })
+          }
+          this.setState({ options })
+        })
+        .catch(error => console.error(error))
+    }, 300)
+
+    handleInputChange = (value) => {
+      this.setState({ inputValue: value }, () => {
+        this.getOpenStreetMapSearch({query: value})
+      });
+      return value;
+    }
+
+    handleSelectChange = (value) => {
+      this.setState({ selectedCity: value })
+    }
+
     render() {
       return (
-        <ClassNames>
-          {({ cx, css }) => (
-            <div
-              className={cx(
+          <ClassNames>
+            {({ cx, css }) => (
+              <div className={cx(
                 this.props.classNameWrapper,
                 css`
-                  ${olStyles};
-                  padding: 0;
-                  overflow: hidden;
-                `,
-              )}
-              ref={this.mapContainer}
-            />
-          )}
-        </ClassNames>
+                  ${lengths.objectWidgetTopBarPadding};
+                  border: ${borders.textField};
+                `
+              )}>
+                <Select
+                  loading={true}
+                  options={this.state.options}
+                  onChange={this.handleSelectChange}
+                  onInputChange={this.handleInputChange}
+                  placeholder="Search for a location..."
+                  styles={reactSelectStyles}
+                  className={css`
+                    border: ${borders.textField};
+                  `}
+                />
+                { this.state.selectedCity &&
+                  <p className={css`
+                      color: #333;
+                      margin-top: 20px;
+                    `}
+                  >
+                    <AddLocationButton>Add to map</AddLocationButton>
+                    <span className={css`margin-left: 10px;`}>
+                      {this.state.selectedCity.label}
+                    </span>
+                  </p>
+                }
+
+                <div
+                  className={css`
+                    ${olStyles};
+                    padding: 0;
+                    margin-top: 20px;
+                    overflow: hidden;
+                  `}
+                  ref={this.mapContainer}
+                />
+              </div>
+            )}
+          </ClassNames>
       );
     }
   };
