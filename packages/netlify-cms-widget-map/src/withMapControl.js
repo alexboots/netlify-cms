@@ -139,6 +139,7 @@ export default function withMapControl({ getFormat, getMap } = {}) {
                   border: ${borders.textField};
                 `
               )}>
+                WHAT IS GOING ON 2
                 <Select
                   isLoading={this.state.isLoading}
                   value={this.state.inputValue}
